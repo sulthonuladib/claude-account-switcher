@@ -14,19 +14,19 @@ NC='\033[0m' # No Color
 
 # Function to print colored output
 print_info() {
-    echo -e "${BLUE}ℹ️  $1${NC}"
+    echo -e "${BLUE}INFO: $1${NC}"
 }
 
 print_success() {
-    echo -e "${GREEN}✅ $1${NC}"
+    echo -e "${GREEN}SUCCESS: $1${NC}"
 }
 
 print_warning() {
-    echo -e "${YELLOW}⚠️  $1${NC}"
+    echo -e "${YELLOW}WARNING: $1${NC}"
 }
 
 print_error() {
-    echo -e "${RED}❌ $1${NC}"
+    echo -e "${RED}ERROR: $1${NC}"
 }
 
 # Function to show usage
@@ -228,9 +228,20 @@ main() {
     
     print_success "Tag $tag_name pushed successfully!"
     echo ""
-    print_success "🚀 Release $new_version initiated!"
+    print_success "Release $new_version initiated!"
     print_info "GitHub Actions will now build and publish the release."
-    print_info "Check the progress at: https://github.com/$(git config --get remote.origin.url | sed 's/.*github.com[:/]\([^.]*\).*/\1/')/actions"
+    
+    # Get repository info for direct link
+    local repo_url=$(git config --get remote.origin.url | sed 's/.*github.com[:/]\([^.]*\).*/\1/')
+    if [[ -n "$repo_url" ]]; then
+        print_info "Check the progress at: https://github.com/$repo_url/actions"
+        print_info "Release will be available at: https://github.com/$repo_url/releases"
+    fi
+    
+    echo ""
+    print_info "If the release fails with '403 Resource not accessible by integration':"
+    print_info "   Go to GitHub repo Settings -> Actions -> General -> Workflow permissions"
+    print_info "   Select 'Read and write permissions' (see .github/SETUP.md for details)"
 }
 
 # Run main function with all arguments

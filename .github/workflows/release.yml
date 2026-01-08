@@ -4,20 +4,25 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Tag to release'
-        required: true
-        type: string
 
 env:
   CARGO_TERM_COLOR: always
 
+# Add permissions for the GITHUB_TOKEN
+permissions:
+  contents: write
+  packages: write
+
 jobs:
+  # First run CI to make sure everything passes
+  ci:
+    name: CI Check
+    uses: ./.github/workflows/ci.yml
+
   build:
     name: Build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
+    needs: ci  # Wait for CI to pass first
     strategy:
       fail-fast: false
       matrix:
@@ -137,7 +142,6 @@ jobs:
     name: Create Release
     needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -162,12 +166,7 @@ jobs:
 
       - name: Extract version from tag
         id: get_version
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "version=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
-          else
-            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          fi
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
       - name: Generate release notes
         id: release_notes
@@ -229,8 +228,7 @@ jobs:
           files: release-assets/*
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
   test:
     name: Test Release Binaries

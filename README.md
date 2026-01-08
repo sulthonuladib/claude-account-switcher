@@ -4,11 +4,11 @@ A command-line tool to manage multiple Claude Code CLI accounts seamlessly.
 
 ## Features
 
-- 🔄 Save and switch between multiple Claude Code accounts
-- 📋 List all saved accounts with timestamps  
-- 🗑️ Delete accounts you no longer need
-- ✏️ Rename accounts for better organization
-- 👤 Show current active account
+- Save and switch between multiple Claude Code accounts
+- List all saved accounts with timestamps  
+- Delete accounts you no longer need
+- Rename accounts for better organization
+- Show current active account
 
 ## Installation
 
@@ -101,10 +101,10 @@ The tool manages your Claude Code CLI configuration by:
 ## Development
 
 Built with:
-- 🦀 Rust 2024 edition
-- 📦 Latest dependency versions
-- 🏗️ GitHub Actions for automated releases
-- 🧪 Comprehensive CI/CD pipeline
+- Rust 2024 edition
+- Latest dependency versions
+- GitHub Actions for automated releases
+- Comprehensive CI/CD pipeline
 
 ### Making a Release
 
@@ -128,12 +128,12 @@ Use the semantic release scripts for easy version management:
 ```
 
 The release script will:
-1. ✅ Run pre-flight checks (git status, tests)
-2. 📝 Update version in Cargo.toml
-3. 🧪 Run tests and build
-4. 💾 Commit version changes
-5. 🏷️ Create and push git tag
-6. 🚀 Trigger automated GitHub release
+1. Run pre-flight checks (git status, tests)
+2. Update version in Cargo.toml
+3. Run tests and build
+4. Commit version changes
+5. Create and push git tag
+6. Trigger automated GitHub release
 
 ## License
 
@@ -145,4 +145,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ---
 
-Made with ❤️ for the Claude Code community
+Made with care for the Claude Code community

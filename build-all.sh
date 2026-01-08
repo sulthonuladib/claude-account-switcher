@@ -31,9 +31,9 @@ done
 for target in "${targets[@]}"; do
     echo "Building for $target..."
     if cargo build --release --target "$target"; then
-        echo "✅ Successfully built for $target"
+        echo "SUCCESS: Successfully built for $target"
     else
-        echo "❌ Failed to build for $target"
+        echo "ERROR: Failed to build for $target"
     fi
 done
 

@@ -5,15 +5,15 @@ set -e
 
 case "$1" in
     "fix"|"bugfix"|"hotfix")
-        echo "🐛 Creating patch release (bug fix)..."
+        echo "Creating patch release (bug fix)..."
         ./release.sh patch
         ;;
     "feature"|"feat")
-        echo "✨ Creating minor release (new feature)..."
+        echo "Creating minor release (new feature)..."
         ./release.sh minor
         ;;
     "breaking"|"break"|"major")
-        echo "💥 Creating major release (breaking change)..."
+        echo "Creating major release (breaking change)..."
         ./release.sh major
         ;;
     *)
