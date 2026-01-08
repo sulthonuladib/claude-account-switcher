@@ -12,7 +12,10 @@ impl fmt::Display for AccountError {
         match self {
             Self::NotFound(name) => write!(f, "Account '{}' not found", name),
             Self::AlreadyExists(name) => write!(f, "Account '{}' already exists", name),
-            Self::NoConfiguration => write!(f, "No Claude Code configuration found. Please authenticate first with: claude-code auth"),
+            Self::NoConfiguration => write!(
+                f,
+                "No Claude Code configuration found. Please authenticate first with: claude-code auth"
+            ),
         }
     }
 }

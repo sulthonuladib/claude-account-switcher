@@ -11,19 +11,10 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    Save {
-        name: String,
-    },
-    Switch {
-        name: String,
-    },
+    Save { name: String },
+    Switch { name: String },
     List,
-    Delete {
-        name: String,
-    },
-    Rename {
-        old_name: String,
-        new_name: String,
-    },
+    Delete { name: String },
+    Rename { old_name: String, new_name: String },
     Current,
 }

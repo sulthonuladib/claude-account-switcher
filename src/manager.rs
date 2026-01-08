@@ -75,9 +75,10 @@ impl AccountManager {
 
         // Save current state if it exists
         if let Some(current) = &config.current
-            && self.claude_config_dir.exists() {
-                let _ = self.save_account(current);
-            }
+            && self.claude_config_dir.exists()
+        {
+            let _ = self.save_account(current);
+        }
 
         // Validate account directory exists
         if !account_meta.path.exists() {
@@ -194,7 +195,7 @@ impl AccountManager {
 
         // Update configuration using the config method
         config.rename_account(old_name, new_name.to_string())?;
-        
+
         // Update the path in the renamed account metadata
         if let Some(meta) = config.accounts.get_mut(new_name) {
             meta.path = new_dir;
