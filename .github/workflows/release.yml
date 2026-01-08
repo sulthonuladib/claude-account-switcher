@@ -1,0 +1,266 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release'
+        required: true
+        type: string
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux targets
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: linux-x86_64
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: linux-aarch64
+          - target: armv7-unknown-linux-gnueabihf
+            os: ubuntu-latest
+            name: linux-armv7
+          - target: i686-unknown-linux-gnu
+            os: ubuntu-latest
+            name: linux-i686
+          
+          # macOS targets
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            name: macos-x86_64
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            name: macos-aarch64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross-compilation tools (Linux)
+        if: matrix.os == 'ubuntu-latest' && matrix.target != 'x86_64-unknown-linux-gnu'
+        run: |
+          case "${{ matrix.target }}" in
+            aarch64-unknown-linux-gnu)
+              sudo apt-get update
+              sudo apt-get install -y gcc-aarch64-linux-gnu
+              echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+              ;;
+            armv7-unknown-linux-gnueabihf)
+              sudo apt-get update
+              sudo apt-get install -y gcc-arm-linux-gnueabihf
+              echo "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc" >> $GITHUB_ENV
+              ;;
+            i686-unknown-linux-gnu)
+              sudo apt-get update
+              sudo apt-get install -y gcc-multilib
+              ;;
+          esac
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.target }}-cargo-build-target-
+
+      - name: Build binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Strip binary (Linux and macOS)
+        if: matrix.os != 'windows-latest'
+        run: |
+          case "${{ matrix.target }}" in
+            aarch64-unknown-linux-gnu)
+              aarch64-linux-gnu-strip target/${{ matrix.target }}/release/claude-account-switcher
+              ;;
+            armv7-unknown-linux-gnueabihf)
+              arm-linux-gnueabihf-strip target/${{ matrix.target }}/release/claude-account-switcher
+              ;;
+            *)
+              strip target/${{ matrix.target }}/release/claude-account-switcher
+              ;;
+          esac
+
+      - name: Create archive
+        shell: bash
+        run: |
+          binary_name="claude-account-switcher"
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            binary_name="claude-account-switcher.exe"
+          fi
+          
+          archive_name="claude-account-switcher-${{ matrix.name }}"
+          
+          if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            7z a "${archive_name}.zip" "./target/${{ matrix.target }}/release/${binary_name}"
+            echo "ASSET=${archive_name}.zip" >> $GITHUB_ENV
+          else
+            tar -czf "${archive_name}.tar.gz" -C "./target/${{ matrix.target }}/release" "${binary_name}"
+            echo "ASSET=${archive_name}.tar.gz" >> $GITHUB_ENV
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: claude-account-switcher-${{ matrix.name }}
+          path: ${{ env.ASSET }}
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display structure of downloaded files
+        run: ls -la artifacts/
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          find artifacts/ -name "*.tar.gz" -o -name "*.zip" | while read file; do
+            cp "$file" release-assets/
+          done
+          ls -la release-assets/
+
+      - name: Extract version from tag
+        id: get_version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "version=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          cat > release_notes.md << 'EOF'
+          ## Claude Account Switcher ${{ steps.get_version.outputs.version }}
+
+          A CLI tool to manage multiple Claude Code CLI accounts seamlessly.
+
+          ### Features
+          - Save and switch between multiple Claude Code accounts
+          - List all saved accounts with timestamps
+          - Delete and rename accounts
+          - Show current active account
+
+          ### Installation
+          1. Download the appropriate binary for your platform
+          2. Extract the archive
+          3. Move the binary to a directory in your PATH
+          4. Make it executable (Linux/macOS): `chmod +x claude-account-switcher`
+
+          ### Supported Platforms
+          - **Linux**: x86_64, aarch64, armv7, i686
+          - **macOS**: x86_64 (Intel), aarch64 (Apple Silicon)
+
+          ### Usage
+          ```bash
+          # Save current Claude Code account
+          claude-account-switcher save work
+
+          # Switch to an account
+          claude-account-switcher switch work
+
+          # List all accounts
+          claude-account-switcher list
+
+          # Show current account
+          claude-account-switcher current
+
+          # Delete an account
+          claude-account-switcher delete work
+
+          # Rename an account
+          claude-account-switcher rename old-name new-name
+          ```
+
+          ### Changes
+          - Built with Rust 2024 edition
+          - Latest dependency versions
+          - Optimized release builds
+          EOF
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.get_version.outputs.version }}
+          name: Claude Account Switcher ${{ steps.get_version.outputs.version }}
+          body_path: release_notes.md
+          files: release-assets/*
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  test:
+    name: Test Release Binaries
+    needs: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: claude-account-switcher-linux-x86_64
+            binary: claude-account-switcher
+          - os: macos-latest
+            artifact: claude-account-switcher-macos-x86_64
+            binary: claude-account-switcher
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+
+      - name: Extract and test binary
+        run: |
+          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            tar -xzf claude-account-switcher-*.tar.gz
+          else
+            tar -xzf claude-account-switcher-*.tar.gz
+          fi
+          
+          chmod +x ${{ matrix.binary }}
+          ./${{ matrix.binary }} --help
+          ./${{ matrix.binary }} --version
